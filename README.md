@@ -74,6 +74,35 @@ curl -X POST http://localhost:8000/api/v1/telemetry \
 }
 ```
 
+### Create a Simple Rule
+
+```bash
+curl -X POST http://localhost:8000/api/v1/rules \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organization_id": 1,
+    "name": "Speed above 70 mph",
+    "rule_type": "simple",
+    "field": "speed_mph",
+    "operator": ">",
+    "threshold": 70,
+    "suppress_for_seconds": 600,
+    "escalate_after_seconds": 900
+  }'
+```
+
+### Manage Rules
+
+```bash
+curl "http://localhost:8000/api/v1/rules?organization_id=1"
+
+curl -X PATCH "http://localhost:8000/api/v1/rules/1?organization_id=1" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+
+curl -X DELETE "http://localhost:8000/api/v1/rules/1?organization_id=1"
+```
+
 ## Commands
 
 ```bash
@@ -103,3 +132,8 @@ uv run alembic downgrade -1
 | GET | /api/v1/vehicles?organization_id= | List vehicles |
 | POST | /api/v1/vehicles/{id}/assign-driver | Assign driver |
 | POST | /api/v1/telemetry | Send telemetry |
+| POST | /api/v1/rules | Create a simple rule |
+| GET | /api/v1/rules?organization_id= | List organization rules |
+| GET | /api/v1/rules/{id}?organization_id= | Get rule |
+| PATCH | /api/v1/rules/{id}?organization_id= | Update rule |
+| DELETE | /api/v1/rules/{id}?organization_id= | Delete rule |
