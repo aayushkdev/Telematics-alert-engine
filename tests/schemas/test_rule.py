@@ -27,7 +27,7 @@ def test_simple_rule_is_valid():
     assert rule.rule_type is RuleType.SIMPLE
 
 
-@pytest.mark.parametrize("field", ["engine_state", "location", "unknown"])
+@pytest.mark.parametrize("field", ["engine_state", "unknown"])
 def test_disallowed_field_is_rejected(field):
     with pytest.raises(ValidationError, match="field must be one of"):
         RuleCreate(**rule_data(field=field))
@@ -80,3 +80,27 @@ def test_windowed_rule_update_accepts_window_settings():
         min_matching_events=3,
     )
     assert update.rule_type is RuleType.WINDOWED
+
+
+def test_location_rule_is_valid():
+    rule = RuleCreate(
+        **rule_data(
+            field="location",
+            operator=RuleOperator.OUTSIDE_RADIUS,
+            threshold=5,
+            center_latitude=12.9716,
+            center_longitude=77.5946,
+        )
+    )
+    assert rule.center_latitude == 12.9716
+
+
+def test_location_rule_requires_center_point():
+    with pytest.raises(ValidationError, match="location rules require center"):
+        RuleCreate(
+            **rule_data(
+                field="location",
+                operator=RuleOperator.OUTSIDE_RADIUS,
+                threshold=5,
+            )
+        )

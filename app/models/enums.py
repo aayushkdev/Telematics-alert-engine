@@ -32,3 +32,4 @@ class RuleOperator(str, enum.Enum):
     LT = "<"
     LTE = "<="
     EQ = "=="
+    OUTSIDE_RADIUS = "outside_radius"

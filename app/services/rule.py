@@ -4,7 +4,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Organization, Rule, Vehicle
-from app.schemas.rule import RuleCreate, RuleUpdate, validate_window_configuration
+from app.schemas.rule import (
+    RuleCreate,
+    RuleUpdate,
+    validate_location_configuration,
+    validate_window_configuration,
+)
 
 
 class InvalidRuleConfigurationError(Exception):
@@ -75,6 +80,14 @@ async def update(
             updates.get("rule_type", rule.rule_type),
             updates.get("window_seconds", rule.window_seconds),
             updates.get("min_matching_events", rule.min_matching_events),
+        )
+        validate_location_configuration(
+            updates.get("rule_type", rule.rule_type),
+            updates.get("field", rule.field),
+            updates.get("operator", rule.operator),
+            updates.get("threshold", rule.threshold),
+            updates.get("center_latitude", rule.center_latitude),
+            updates.get("center_longitude", rule.center_longitude),
         )
     except ValueError as error:
         raise InvalidRuleConfigurationError(str(error))

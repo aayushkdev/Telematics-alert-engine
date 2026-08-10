@@ -26,6 +26,8 @@ class Rule(Base):
     field: Mapped[str] = mapped_column(String(100), nullable=False)
     operator: Mapped[str] = mapped_column(String(10), nullable=False)
     threshold: Mapped[float] = mapped_column(Float, nullable=False)
+    center_latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    center_longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     window_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     min_matching_events: Mapped[int | None] = mapped_column(Integer, nullable=True)
     suppress_for_seconds: Mapped[int] = mapped_column(

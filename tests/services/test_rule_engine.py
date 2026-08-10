@@ -11,6 +11,8 @@ def make_telemetry(**kwargs):
     t.speed_mph = kwargs.get("speed_mph")
     t.fuel_level_percent = kwargs.get("fuel_level_percent")
     t.odometer_miles = kwargs.get("odometer_miles")
+    t.latitude = kwargs.get("latitude")
+    t.longitude = kwargs.get("longitude")
     return t
 
 
@@ -20,6 +22,8 @@ def make_rule(
     threshold=70.0,
     enabled=True,
     rule_type=RuleType.SIMPLE,
+    center_latitude=None,
+    center_longitude=None,
 ):
     r = MagicMock()
     r.field = field
@@ -27,6 +31,8 @@ def make_rule(
     r.threshold = threshold
     r.enabled = enabled
     r.rule_type = rule_type
+    r.center_latitude = center_latitude
+    r.center_longitude = center_longitude
     return r
 
 
@@ -124,3 +130,20 @@ def test_odometer_field():
     )
     assert rule_engine.matches(rule, make_telemetry(odometer_miles=15000)) is True
     assert rule_engine.matches(rule, make_telemetry(odometer_miles=5000)) is False
+
+
+def test_location_outside_radius_matches():
+    rule = make_rule(
+        field="location",
+        operator=RuleOperator.OUTSIDE_RADIUS,
+        threshold=5,
+        center_latitude=12.9716,
+        center_longitude=77.5946,
+    )
+
+    assert rule_engine.matches(
+        rule, make_telemetry(latitude=13.0716, longitude=77.5946)
+    ) is True
+    assert rule_engine.matches(
+        rule, make_telemetry(latitude=12.9816, longitude=77.5946)
+    ) is False

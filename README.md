@@ -154,6 +154,26 @@ uv run python -m app.workers.escalation
 Rules with `suppress_for_seconds` greater than zero use Redis to throttle
 repeated matching pings. If Redis is unavailable, alerts continue processing.
 
+### Run the Telemetry Simulator
+
+The simulator can create development vehicles, move them using coordinates, and
+send batches of telemetry. This example sends three mixed-scenario vehicles
+every second for ten iterations:
+
+```bash
+uv run --group dev python -m simulator.telemetry \
+  --organization-id 1 \
+  --vehicle-count 3 \
+  --create-vehicles \
+  --scenario mixed \
+  --interval 1 \
+  --iterations 10
+```
+
+Use `--scenario normal`, `speeding`, or `low-fuel` for a fixed scenario. Pass
+`--vehicle-ids VIN123,VIN456` to send telemetry for existing vehicles instead.
+Use `--speed-mph 105` to send a fixed speed for a windowed-speed-rule demo.
+
 ## Commands
 
 ```bash
