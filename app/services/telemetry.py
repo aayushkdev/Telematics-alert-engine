@@ -61,7 +61,7 @@ async def create(db: AsyncSession, data: TelemetryCreate) -> Telemetry:
     matched_rules = await evaluate_rules_for_telemetry(db, telemetry)
     processed_rules = []
     for matched_rule in matched_rules:
-        if await suppression.is_suppressed(
+        if not await suppression.try_acquire(
             matched_rule.id,
             telemetry.vehicle_id,
             matched_rule.suppress_for_seconds,
@@ -72,17 +72,17 @@ async def create(db: AsyncSession, data: TelemetryCreate) -> Telemetry:
 
     try:
         await db.commit()
-        await db.refresh(telemetry)
-    except IntegrityError:
+    except Exception:
         await db.rollback()
+        for processed_rule in processed_rules:
+            await suppression.release(
+                processed_rule.id,
+                telemetry.vehicle_id,
+                processed_rule.suppress_for_seconds,
+            )
         raise
 
-    for processed_rule in processed_rules:
-        await suppression.start_cooldown(
-            processed_rule.id,
-            telemetry.vehicle_id,
-            processed_rule.suppress_for_seconds,
-        )
+    await db.refresh(telemetry)
 
     if processed_rules:
         logger.info(
