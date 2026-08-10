@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
-from app.core.health import router as health_router
+from app.routes.health import router as health_router
 
 
 @asynccontextmanager
