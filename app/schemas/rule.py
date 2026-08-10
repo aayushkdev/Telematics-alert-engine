@@ -2,11 +2,10 @@ from datetime import datetime
 
 from pydantic import field_validator, model_validator
 
-from app.models.enums import RuleType
+from app.models.enums import RuleOperator, RuleType
 from app.schemas.base import BaseSchema
 
 ALLOWED_FIELDS = frozenset({"speed_mph", "fuel_level_percent", "odometer_miles"})
-ALLOWED_OPERATORS = frozenset({">", ">=", "<", "<=", "=="})
 
 
 class RuleCreate(BaseSchema):
@@ -16,7 +15,7 @@ class RuleCreate(BaseSchema):
     enabled: bool = True
     rule_type: RuleType
     field: str
-    operator: str
+    operator: RuleOperator
     threshold: float
     window_seconds: int | None = None
     min_matching_events: int | None = None
@@ -27,15 +26,8 @@ class RuleCreate(BaseSchema):
     @classmethod
     def validate_field(cls, value: str) -> str:
         if value not in ALLOWED_FIELDS:
-            raise ValueError(f"field must be one of: {', '.join(sorted(ALLOWED_FIELDS))}")
-        return value
-
-    @field_validator("operator")
-    @classmethod
-    def validate_operator(cls, value: str) -> str:
-        if value not in ALLOWED_OPERATORS:
             raise ValueError(
-                f"operator must be one of: {', '.join(sorted(ALLOWED_OPERATORS))}"
+                f"field must be one of: {', '.join(sorted(ALLOWED_FIELDS))}"
             )
         return value
 
@@ -63,7 +55,7 @@ class RuleResponse(BaseSchema):
     enabled: bool
     rule_type: RuleType
     field: str
-    operator: str
+    operator: RuleOperator
     threshold: float
     window_seconds: int | None
     min_matching_events: int | None
@@ -78,7 +70,7 @@ class RuleUpdate(BaseSchema):
     vehicle_id: int | None = None
     rule_type: RuleType | None = None
     field: str | None = None
-    operator: str | None = None
+    operator: RuleOperator | None = None
     threshold: float | None = None
     window_seconds: int | None = None
     min_matching_events: int | None = None
@@ -89,15 +81,8 @@ class RuleUpdate(BaseSchema):
     @classmethod
     def validate_field(cls, value: str | None) -> str | None:
         if value is not None and value not in ALLOWED_FIELDS:
-            raise ValueError(f"field must be one of: {', '.join(sorted(ALLOWED_FIELDS))}")
-        return value
-
-    @field_validator("operator")
-    @classmethod
-    def validate_operator(cls, value: str | None) -> str | None:
-        if value is not None and value not in ALLOWED_OPERATORS:
             raise ValueError(
-                f"operator must be one of: {', '.join(sorted(ALLOWED_OPERATORS))}"
+                f"field must be one of: {', '.join(sorted(ALLOWED_FIELDS))}"
             )
         return value
 

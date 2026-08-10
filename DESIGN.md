@@ -2,7 +2,7 @@
 
 ## Goal
 
-Receive vehicle telemetry, evaluate configurable rules, and let operators manage the resulting alerts. The first version deliberately stays small: one FastAPI application, RabbitMQ for asynchronous telemetry processing, PostgreSQL for durable data, and Redis only for short-lived state.
+Receive vehicle telemetry, configure rules, and later evaluate them into alerts. The current implementation deliberately stays small: one FastAPI application and PostgreSQL. RabbitMQ and Redis are planned additions, not active parts of the current request path.
 
 ## Architecture
 
@@ -13,31 +13,23 @@ Simulator / vehicle
         v
     FastAPI API
         |
-        | durable telemetry message
         v
-     RabbitMQ
+   Telemetry service
         |
         v
-Telemetry worker ----> PostgreSQL
-        |
-        +-------------> Redis
-
-Escalation scheduler ----> PostgreSQL
+    PostgreSQL
 ```
 
 ### Responsibilities
 
 | Component | Responsibility |
 | --- | --- |
-| FastAPI | Validate requests, expose management APIs, publish telemetry to RabbitMQ. |
-| RabbitMQ | Buffer telemetry so API latency is independent of rule evaluation. |
-| Telemetry worker | Persist telemetry, evaluate rules, create or update alerts. |
+| FastAPI | Validate requests and expose management APIs. |
+| Telemetry service | Resolve a VIN to a vehicle, save telemetry, and later evaluate rules. |
 | PostgreSQL | Source of truth for organizations, vehicles, drivers, telemetry, rules, and alerts. |
-| Redis | Windowed-rule timestamps and repeated-alert suppression keys only. |
-| Escalation scheduler | Every minute, escalates open alerts that were not acknowledged in time. |
 | Simulator | Sends realistic, repeatable telemetry to the API for demos and tests. |
 
-There is no outbox and no microservice split. API, workers, and scheduler use the same codebase and are launched as separate processes.
+Later, FastAPI can publish telemetry to RabbitMQ and a worker can call the same telemetry service. Redis will hold only window and suppression state. There is no outbox and no microservice split.
 
 ## Domain model
 
@@ -72,22 +64,21 @@ There are intentionally no fleets. Organization-wide rules apply to all organiza
 ```json
 {
   "event_id": "b776a0d7-b893-4a51-9c6c-75f47a3a1fc4",
+  "organization_id": 1,
   "vehicle_id": "VIN1234567890",
   "timestamp": "2026-08-03T10:45:00Z",
   "speed_mph": 65,
   "fuel_level_percent": 42,
   "engine_state": "on",
   "odometer_miles": 12050,
-  "location": {
-    "latitude": 12.9716,
-    "longitude": 77.5946
-  }
+  "latitude": 12.9716,
+  "longitude": 77.5946
 }
 ```
 
-`event_id` is unique. PostgreSQL enforces this uniqueness, so an at-least-once RabbitMQ delivery cannot store the same telemetry twice. `vehicle_id` is the vehicle's alphanumeric VIN from the public API; the telemetry worker resolves it to the internal integer `vehicles.id` before saving telemetry.
+`event_id` is unique. PostgreSQL enforces this uniqueness, so duplicate requests cannot store the same telemetry twice. `vehicle_id` is the vehicle's alphanumeric VIN from the public API; the telemetry service resolves it to the internal integer `vehicles.id` before saving telemetry.
 
-The telemetry endpoint responds with `202 Accepted` after RabbitMQ accepts the durable message. The worker acknowledges the RabbitMQ message only after the database transaction succeeds.
+The current telemetry endpoint writes directly to PostgreSQL and responds with `201 Created`. When RabbitMQ is added later, the endpoint will respond with `202 Accepted` after publishing a durable message.
 
 ## Rules
 
@@ -127,7 +118,7 @@ Supported operators:
 
 The condition is evaluated against each telemetry event. The worker uses an explicit operator map, never `eval()`.
 
-### Windowed rule
+### Windowed rule (later)
 
 ```json
 {
@@ -145,7 +136,7 @@ The condition is evaluated against each telemetry event. The worker uses an expl
 
 This triggers when the vehicle exceeds 70 mph three times within five minutes.
 
-Redis stores matching timestamps in a sorted set:
+Windowed evaluation is not implemented yet. It will use Redis sorted sets:
 
 ```text
 window:{rule_id}:{vehicle_id}
@@ -165,7 +156,7 @@ When a rule matches:
 
 1. Find an unresolved alert for the same rule and vehicle.
 2. If one exists, update `occurrence_count` and `last_seen_at`.
-3. If none exists and the rule is not currently suppressed, create an `OPEN` alert and notify operators.
+3. If none exists and the rule is not currently suppressed, create an `OPEN` alert.
 
 This ensures repeated low-fuel pings update one alert instead of creating hundreds.
 
@@ -208,7 +199,9 @@ POST   /api/v1/vehicles/{vehicle_id}/assign-driver
 
 POST   /api/v1/rules
 GET    /api/v1/rules
+GET    /api/v1/rules/{rule_id}
 PATCH  /api/v1/rules/{rule_id}
+DELETE /api/v1/rules/{rule_id}
 
 GET    /api/v1/alerts
 POST   /api/v1/alerts/{alert_id}/acknowledge
@@ -227,8 +220,8 @@ app/
   schemas/       # request/response validation models
   routes/        # FastAPI endpoints
   services/      # rule and alert business logic
-  messaging/     # RabbitMQ connection and publishers
-  workers/       # telemetry and scheduler processes
+  messaging/     # RabbitMQ connection and publishers (later)
+  workers/       # telemetry and scheduler processes (later)
 
 tests/
   routes/
@@ -242,7 +235,7 @@ simulator/
 ## Scaling approach
 
 - FastAPI is stateless and can run multiple replicas.
-- Add telemetry-worker replicas when the RabbitMQ queue grows.
+- Add telemetry-worker replicas when RabbitMQ is introduced and the queue grows.
 - Use unique `event_id` to make duplicate message delivery safe.
 - Cache active rules in each worker instead of querying every rule for every ping.
 - Redis keys must always have TTLs.
@@ -253,9 +246,9 @@ simulator/
 
 1. Foundation: FastAPI, Docker Compose, SQLAlchemy, Alembic, health check.
 2. Organization domain: organizations, users, drivers, vehicles, initial migration, and basic CRUD APIs.
-3. Telemetry ingestion: validate `POST /api/v1/telemetry` and publish persistent messages to RabbitMQ.
-4. Telemetry worker: consume messages, store telemetry in PostgreSQL, and make duplicate `event_id` values safe.
-5. Simple rules: organization-wide or vehicle-specific numeric threshold rules.
+3. Telemetry ingestion: validate `POST /api/v1/telemetry`, store it directly in PostgreSQL, and make duplicate `event_id` values safe.
+4. Rule management: create, list, update, and delete organization-wide or vehicle-specific simple threshold rules. No evaluation yet.
+5. Simple rule evaluation: evaluate configured rules after telemetry is saved.
 6. Alerts: create one active alert per rule and vehicle; add list, acknowledge, and resolve APIs.
 7. Suppression and escalation: Redis suppression keys and a scheduler that changes overdue unacknowledged alerts to `ESCALATED`.
 8. Windowed rules: Redis sorted sets for “N matching events in X seconds”.

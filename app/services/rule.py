@@ -84,7 +84,9 @@ async def delete(db: AsyncSession, rule_id: int, organization_id: int) -> bool:
     return True
 
 
-async def _get_organization(db: AsyncSession, organization_id: int) -> Organization | None:
+async def _get_organization(
+    db: AsyncSession, organization_id: int
+) -> Organization | None:
     result = await db.execute(
         select(Organization).where(Organization.id == organization_id)
     )
@@ -101,3 +103,20 @@ async def _vehicle_belongs_to_organization(
         )
     )
     return result.scalar_one_or_none() is not None
+
+
+async def get_active_for_telemetry(
+    db: AsyncSession, organization_id: int, vehicle_id: int
+) -> list[Rule]:
+    """Get enabled simple rules applicable to a telemetry record."""
+    from app.models.enums import RuleType
+
+    result = await db.execute(
+        select(Rule).where(
+            Rule.organization_id == organization_id,
+            Rule.enabled == True,  # noqa: E712
+            (Rule.vehicle_id.is_(None) | (Rule.vehicle_id == vehicle_id)),
+            Rule.rule_type == RuleType.SIMPLE,
+        )
+    )
+    return list(result.scalars().all())

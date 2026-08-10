@@ -24,3 +24,11 @@ class AlertStatus(str, enum.Enum):
 class RuleType(str, enum.Enum):
     SIMPLE = "simple"
     WINDOWED = "windowed"
+
+
+class RuleOperator(str, enum.Enum):
+    GT = ">"
+    GTE = ">="
+    LT = "<"
+    LTE = "<="
+    EQ = "=="
