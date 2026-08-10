@@ -5,9 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Telemetry, Vehicle
+from app.models import Rule, Telemetry, Vehicle
 from app.schemas.telemetry import TelemetryCreate
-from app.services import rule, rule_engine
+from app.services import alert, rule, rule_engine
 
 logger = logging.getLogger(__name__)
 
@@ -52,19 +52,27 @@ async def create(db: AsyncSession, data: TelemetryCreate) -> Telemetry:
     db.add(telemetry)
 
     try:
-        await db.commit()
-        await db.refresh(telemetry)
+        await db.flush()
     except IntegrityError:
         await db.rollback()
         raise DuplicateEventError()
 
-    # Evaluate rules after persistence
-    matched_rule_ids = await evaluate_rules_for_telemetry(db, telemetry)
-    if matched_rule_ids:
+    matched_rules = await evaluate_rules_for_telemetry(db, telemetry)
+    for matched_rule in matched_rules:
+        await alert.record_match(db, matched_rule, telemetry, vehicle.current_driver_id)
+
+    try:
+        await db.commit()
+        await db.refresh(telemetry)
+    except IntegrityError:
+        await db.rollback()
+        raise
+
+    if matched_rules:
         logger.info(
             "Telemetry %s matched rules: %s",
             telemetry.event_id,
-            matched_rule_ids,
+            [matched_rule.id for matched_rule in matched_rules],
         )
 
     return telemetry
@@ -72,15 +80,15 @@ async def create(db: AsyncSession, data: TelemetryCreate) -> Telemetry:
 
 async def evaluate_rules_for_telemetry(
     db: AsyncSession, telemetry: Telemetry
-) -> list[int]:
+) -> list[Rule]:
     """Evaluate all active rules against a telemetry record."""
     rules = await rule.get_active_for_telemetry(
         db, telemetry.organization_id, telemetry.vehicle_id
     )
 
     matched = []
-    for r in rules:
-        if rule_engine.matches(r, telemetry):
-            matched.append(r.id)
+    for configured_rule in rules:
+        if rule_engine.matches(configured_rule, telemetry):
+            matched.append(configured_rule)
 
     return matched

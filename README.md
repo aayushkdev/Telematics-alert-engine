@@ -103,6 +103,23 @@ curl -X PATCH "http://localhost:8000/api/v1/rules/1?organization_id=1" \
 curl -X DELETE "http://localhost:8000/api/v1/rules/1?organization_id=1"
 ```
 
+### Manage Alerts
+
+When telemetry matches a rule, the API creates one open alert for that rule and
+vehicle. Further matching telemetry updates the same unresolved alert instead
+of creating duplicates.
+
+```bash
+# List all alerts for an organization, or add &status=open to filter
+curl "http://localhost:8000/api/v1/alerts?organization_id=1"
+
+# Mark an alert as seen
+curl -X POST "http://localhost:8000/api/v1/alerts/1/acknowledge?organization_id=1"
+
+# Resolve an alert
+curl -X POST "http://localhost:8000/api/v1/alerts/1/resolve?organization_id=1"
+```
+
 ## Commands
 
 ```bash
@@ -137,3 +154,6 @@ uv run alembic downgrade -1
 | GET | /api/v1/rules/{id}?organization_id= | Get rule |
 | PATCH | /api/v1/rules/{id}?organization_id= | Update rule |
 | DELETE | /api/v1/rules/{id}?organization_id= | Delete rule |
+| GET | /api/v1/alerts?organization_id= | List organization alerts |
+| POST | /api/v1/alerts/{id}/acknowledge?organization_id= | Acknowledge alert |
+| POST | /api/v1/alerts/{id}/resolve?organization_id= | Resolve alert |

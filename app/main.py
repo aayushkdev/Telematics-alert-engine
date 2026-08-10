@@ -2,7 +2,16 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.routes import drivers, health, organizations, rules, telemetry, users, vehicles
+from app.routes import (
+    alerts,
+    drivers,
+    health,
+    organizations,
+    rules,
+    telemetry,
+    users,
+    vehicles,
+)
 
 
 @asynccontextmanager
@@ -25,6 +34,7 @@ app.include_router(drivers.router, prefix="/api/v1/drivers", tags=["drivers"])
 app.include_router(vehicles.router, prefix="/api/v1/vehicles", tags=["vehicles"])
 app.include_router(telemetry.router, prefix="/api/v1/telemetry", tags=["telemetry"])
 app.include_router(rules.router, prefix="/api/v1/rules", tags=["rules"])
+app.include_router(alerts.router, prefix="/api/v1/alerts", tags=["alerts"])
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -13,6 +13,13 @@ class Alert(Base):
     __tablename__ = "alerts"
     __table_args__ = (
         Index("ix_alerts_rule_vehicle_status", "rule_id", "vehicle_id", "status"),
+        Index(
+            "uq_alerts_unresolved_rule_vehicle",
+            "rule_id",
+            "vehicle_id",
+            unique=True,
+            postgresql_where=text("status != 'RESOLVED'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
