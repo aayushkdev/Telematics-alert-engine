@@ -106,3 +106,34 @@ def test_both_coordinates_provided_valid():
     )
     assert t.latitude == 12.9716
     assert t.longitude == 77.5946
+
+
+def test_timestamp_without_timezone_rejected():
+    with pytest.raises(ValidationError) as exc:
+        TelemetryCreate(
+            event_id="test",
+            organization_id=1,
+            vehicle_id="VIN123",
+            timestamp="2026-08-03T10:45:00",
+        )
+    assert "timezone" in str(exc.value)
+
+
+def test_timestamp_with_z_accepted():
+    t = TelemetryCreate(
+        event_id="test",
+        organization_id=1,
+        vehicle_id="VIN123",
+        timestamp="2026-08-03T10:45:00Z",
+    )
+    assert t.timestamp is not None
+
+
+def test_timestamp_with_offset_accepted():
+    t = TelemetryCreate(
+        event_id="test",
+        organization_id=1,
+        vehicle_id="VIN123",
+        timestamp="2026-08-03T10:45:00+05:30",
+    )
+    assert t.timestamp is not None

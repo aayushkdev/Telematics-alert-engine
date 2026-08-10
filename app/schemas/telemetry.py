@@ -18,6 +18,17 @@ class TelemetryCreate(BaseSchema):
     latitude: float | None = None
     longitude: float | None = None
 
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def validate_timestamp(cls, v):
+        if isinstance(v, str):
+            parsed = datetime.fromisoformat(v)
+            if parsed.tzinfo is None:
+                raise ValueError(
+                    "timestamp must be timezone-aware (e.g., ending in Z or with offset)"
+                )
+        return v
+
     @field_validator("latitude")
     @classmethod
     def validate_latitude(cls, v):
@@ -45,7 +56,7 @@ class TelemetryResponse(BaseSchema):
     id: int
     event_id: str
     organization_id: int
-    vehicle_id: str  # VIN as string in public API
+    vehicle_id: str
     timestamp: datetime
     speed_mph: float | None
     fuel_level_percent: float | None
