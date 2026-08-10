@@ -24,7 +24,7 @@ class Rule(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     rule_type: Mapped[RuleType] = mapped_column(nullable=False)
     field: Mapped[str] = mapped_column(String(100), nullable=False)
-    operator: Mapped[str] = mapped_column(String(10), nullable=False)
+    operator: Mapped[str] = mapped_column(String(32), nullable=False)
     threshold: Mapped[float] = mapped_column(Float, nullable=False)
     center_latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     center_longitude: Mapped[float | None] = mapped_column(Float, nullable=True)

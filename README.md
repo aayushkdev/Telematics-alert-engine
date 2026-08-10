@@ -174,6 +174,15 @@ Use `--scenario normal`, `speeding`, or `low-fuel` for a fixed scenario. Pass
 `--vehicle-ids VIN123,VIN456` to send telemetry for existing vehicles instead.
 Use `--speed-mph 105` to send a fixed speed for a windowed-speed-rule demo.
 
+To create a complete demo organization, drivers, vehicles, and rules:
+
+```bash
+bash scripts/init_demo.sh
+```
+
+The script needs `curl` and `jq`. In Fish, then run `source /tmp/motorq-demo.fish`
+to load the generated organization and vehicle variables.
+
 ## Commands
 
 ```bash
