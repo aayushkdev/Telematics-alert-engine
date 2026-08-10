@@ -5,13 +5,27 @@ Telematics alert engine built with FastAPI, PostgreSQL, Redis, and RabbitMQ.
 ```mermaid
 flowchart LR
     S[Telemetry simulator / vehicle] -->|POST telemetry| A[FastAPI API]
-    A -->|Publish durable event| Q[(RabbitMQ telemetry queue)]
+    A -->|Validate and publish durable event| Q[(RabbitMQ telemetry queue)]
     Q --> T[Telemetry worker]
-    T -->|Store events and alerts| P[(PostgreSQL)]
-    T -->|Window and suppression state| R[(Redis)]
-    E[Escalation worker] -->|Find overdue alerts| P
+    T -->|Resolve VIN and store telemetry| P[(PostgreSQL)]
+    T -->|Load active applicable rules| L[Rule lookup]
+    L --> RE[Rule engine]
+    RE --> B{Rule type}
+    B -->|Simple| C[Evaluate current event]
+    B -->|Windowed| W[Count matching events in Redis window]
+    W --> C
+    C -->|No match| X[Finish]
+    C -->|Match| R[Redis suppression cooldown]
+    R -->|Suppressed| X
+    R -->|Allowed| AL[Create or update alert]
+    AL --> P
+    T -->|Window state| RDS[(Redis)]
+    E[Escalation worker] -->|Find overdue open alerts| P
+    E -->|Mark alerts escalated| P
     A -->|Manage organizations, vehicles, rules, alerts| P
 ```
+
+![Speed test](assets/speed_test.png)
 
 ## Setup
 
