@@ -65,3 +65,9 @@ class TelemetryResponse(BaseSchema):
     latitude: float | None
     longitude: float | None
     received_at: datetime
+
+
+class TelemetryAccepted(BaseSchema):
+    event_id: str
+    organization_id: int
+    status: str = "accepted"

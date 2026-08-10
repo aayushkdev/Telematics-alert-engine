@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.redis import close_client
+from app.messaging.rabbitmq import close as close_rabbitmq
 from app.routes import (
     alerts,
     drivers,
@@ -19,6 +20,7 @@ from app.routes import (
 async def lifespan(app: FastAPI):
     yield
     await close_client()
+    await close_rabbitmq()
 
 
 app = FastAPI(

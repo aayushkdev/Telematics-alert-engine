@@ -10,6 +10,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
 
   escalation-worker:
     build: .
@@ -18,6 +20,16 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+
+  telemetry-worker:
+    build: .
+    command: uv run --no-sync python -m app.workers.telemetry
+    environment: *app_environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
 
   migrate:
     build: .
@@ -55,6 +67,11 @@ services:
       RABBITMQ_DEFAULT_PASS: motorq
     ports:
       - "5672:5672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   postgres_data:

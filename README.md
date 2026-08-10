@@ -2,10 +2,22 @@
 
 Telematics alert engine built with FastAPI, PostgreSQL, Redis, and RabbitMQ.
 
+```mermaid
+flowchart LR
+    S[Telemetry simulator / vehicle] -->|POST telemetry| A[FastAPI API]
+    A -->|Publish durable event| Q[(RabbitMQ telemetry queue)]
+    Q --> T[Telemetry worker]
+    T -->|Store events and alerts| P[(PostgreSQL)]
+    T -->|Window and suppression state| R[(Redis)]
+    E[Escalation worker] -->|Find overdue alerts| P
+    A -->|Manage organizations, vehicles, rules, alerts| P
+```
+
 ## Setup
 
 ```bash
-# Build and start the API, escalation worker, PostgreSQL, Redis, and RabbitMQ
+# Build and start the API, telemetry worker, escalation worker, PostgreSQL, Redis,
+# and RabbitMQ
 docker compose up -d --build
 
 # The one-shot migrate container applies Alembic migrations before API/worker startup.
@@ -58,23 +70,22 @@ curl -X POST http://localhost:8000/api/v1/telemetry \
   }'
 ```
 
-**Response (HTTP 201):**
+**Response (HTTP 202):**
 
 ```json
 {
-  "id": 1,
   "event_id": "event-001",
   "organization_id": 1,
-  "vehicle_id": "VIN1234567890",
-  "timestamp": "2026-08-03T10:45:00Z",
-  "speed_mph": 65,
-  "fuel_level_percent": 42,
-  "engine_state": "on",
-  "odometer_miles": 12050,
-  "latitude": 12.9716,
-  "longitude": 77.5946,
-  "received_at": "2026-08-10T23:30:00Z"
+  "status": "accepted"
 }
+```
+
+Telemetry is accepted only after it is durably published to the RabbitMQ
+`telemetry` queue. The telemetry worker consumes that queue, writes the event to
+PostgreSQL, and evaluates rules. Start it locally with:
+
+```bash
+uv run python -m app.workers.telemetry
 ```
 
 ### Create a Simple Rule

@@ -1,32 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException
 
-from app import services
-from app.db.session import get_db
-from app.schemas.telemetry import TelemetryCreate, TelemetryResponse
+from app.messaging.rabbitmq import MessagingUnavailable, publish_telemetry
+from app.schemas.telemetry import TelemetryAccepted, TelemetryCreate
 
 router = APIRouter()
 
 
-@router.post("", response_model=TelemetryResponse, status_code=201)
-async def create_telemetry(data: TelemetryCreate, db: AsyncSession = Depends(get_db)):
+@router.post("", response_model=TelemetryAccepted, status_code=202)
+async def create_telemetry(data: TelemetryCreate):
     try:
-        telemetry = await services.telemetry.create(db, data)
-        return TelemetryResponse(
-            id=telemetry.id,
-            event_id=telemetry.event_id,
-            organization_id=telemetry.organization_id,
-            vehicle_id=data.vehicle_id,
-            timestamp=telemetry.timestamp,
-            speed_mph=telemetry.speed_mph,
-            fuel_level_percent=telemetry.fuel_level_percent,
-            engine_state=telemetry.engine_state,
-            odometer_miles=telemetry.odometer_miles,
-            latitude=telemetry.latitude,
-            longitude=telemetry.longitude,
-            received_at=telemetry.received_at,
-        )
-    except services.telemetry.DuplicateEventError:
-        raise HTTPException(status_code=409, detail="Duplicate event_id")
-    except services.telemetry.VehicleNotFoundError:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
+        await publish_telemetry(data.model_dump(mode="json"))
+    except MessagingUnavailable:
+        raise HTTPException(status_code=503, detail="Telemetry queue unavailable")
+    return TelemetryAccepted(event_id=data.event_id, organization_id=data.organization_id)
