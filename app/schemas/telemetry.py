@@ -7,7 +7,7 @@ from app.schemas.base import BaseSchema
 class TelemetryCreate(BaseSchema):
     event_id: str
     organization_id: int
-    vehicle_id: int
+    vehicle_id: str
     timestamp: datetime
     speed_mph: float | None = None
     fuel_level_percent: float | None = None

@@ -1,8 +1,8 @@
 """initial_schema
 
-Revision ID: b5ce575ca7c2
+Revision ID: 5e234734ed81
 Revises: 
-Create Date: 2026-08-10 23:44:51.201710
+Create Date: 2026-08-11 00:04:02.972750
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'b5ce575ca7c2'
+revision: str = '5e234734ed81'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -36,14 +36,6 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('fleets',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('organization_id', sa.Integer(), nullable=False),
-    sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
-    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('organization_id', sa.Integer(), nullable=False),
@@ -58,13 +50,11 @@ def upgrade() -> None:
     op.create_table('vehicles',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('organization_id', sa.Integer(), nullable=False),
-    sa.Column('fleet_id', sa.Integer(), nullable=True),
     sa.Column('current_driver_id', sa.Integer(), nullable=True),
     sa.Column('vin', sa.String(length=17), nullable=False),
     sa.Column('display_name', sa.String(length=255), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['current_driver_id'], ['drivers.id'], ),
-    sa.ForeignKeyConstraint(['fleet_id'], ['fleets.id'], ),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('vin')
@@ -72,7 +62,6 @@ def upgrade() -> None:
     op.create_table('rules',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('organization_id', sa.Integer(), nullable=False),
-    sa.Column('fleet_id', sa.Integer(), nullable=True),
     sa.Column('vehicle_id', sa.Integer(), nullable=True),
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('enabled', sa.Boolean(), nullable=False),
@@ -85,7 +74,6 @@ def upgrade() -> None:
     sa.Column('suppress_for_seconds', sa.Integer(), nullable=False),
     sa.Column('escalate_after_seconds', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['fleet_id'], ['fleets.id'], ),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ),
     sa.ForeignKeyConstraint(['vehicle_id'], ['vehicles.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -107,7 +95,6 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ),
     sa.ForeignKeyConstraint(['vehicle_id'], ['vehicles.id'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('event_id'),
     sa.UniqueConstraint('event_id')
     )
     op.create_index('ix_telemetry_vehicle_timestamp', 'telemetry', ['vehicle_id', 'timestamp'], unique=False)
@@ -147,7 +134,6 @@ def downgrade() -> None:
     op.drop_table('rules')
     op.drop_table('vehicles')
     op.drop_table('users')
-    op.drop_table('fleets')
     op.drop_table('drivers')
     op.drop_table('organizations')
     # ### end Alembic commands ###

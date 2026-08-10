@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, DateTime, Float, String, UniqueConstraint, Index
+from sqlalchemy import ForeignKey, DateTime, Float, String, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -9,10 +9,7 @@ from app.models.enums import EngineState
 
 class Telemetry(Base):
     __tablename__ = "telemetry"
-    __table_args__ = (
-        UniqueConstraint("event_id"),
-        Index("ix_telemetry_vehicle_timestamp", "vehicle_id", "timestamp"),
-    )
+    __table_args__ = (Index("ix_telemetry_vehicle_timestamp", "vehicle_id", "timestamp"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     event_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
