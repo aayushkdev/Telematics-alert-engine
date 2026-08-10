@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.core.redis import close_client
 from app.routes import (
     alerts,
     drivers,
@@ -17,6 +18,7 @@ from app.routes import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
+    await close_client()
 
 
 app = FastAPI(

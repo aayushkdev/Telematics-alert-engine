@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -115,3 +115,48 @@ async def test_acknowledge_rejects_resolved_alert():
 
     with pytest.raises(alert_service.AlertResolvedError):
         await alert_service.acknowledge(db, alert_id=8, organization_id=3)
+
+
+@pytest.mark.asyncio
+async def test_escalate_overdue_changes_only_open_due_alerts():
+    now = datetime(2026, 8, 11, 12, 0, tzinfo=UTC)
+    alert = MagicMock()
+    alert.id = 8
+    alert.opened_at = now - timedelta(seconds=61)
+    rule = MagicMock()
+    rule.escalate_after_seconds = 60
+
+    candidates = MagicMock()
+    candidates.all.return_value = [(alert, rule)]
+    update_result = MagicMock()
+    update_result.rowcount = 1
+    db = MagicMock()
+    db.execute = AsyncMock(side_effect=[candidates, update_result])
+    db.commit = AsyncMock()
+
+    escalated = await alert_service.escalate_overdue(db, now=now)
+
+    assert escalated == 1
+    assert db.execute.await_count == 2
+    db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_escalate_overdue_skips_not_yet_due_alert():
+    now = datetime(2026, 8, 11, 12, 0, tzinfo=UTC)
+    alert = MagicMock()
+    alert.opened_at = now - timedelta(seconds=59)
+    rule = MagicMock()
+    rule.escalate_after_seconds = 60
+
+    candidates = MagicMock()
+    candidates.all.return_value = [(alert, rule)]
+    db = MagicMock()
+    db.execute = AsyncMock(return_value=candidates)
+    db.commit = AsyncMock()
+
+    escalated = await alert_service.escalate_overdue(db, now=now)
+
+    assert escalated == 0
+    assert db.execute.await_count == 1
+    db.commit.assert_not_awaited()

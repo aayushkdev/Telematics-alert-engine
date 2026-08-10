@@ -1,6 +1,6 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Alert, AlertStatus, Rule, Telemetry
@@ -87,6 +87,36 @@ async def resolve(db: AsyncSession, alert_id: int, organization_id: int) -> Aler
         await db.commit()
         await db.refresh(alert)
     return alert
+
+
+async def escalate_overdue(
+    db: AsyncSession, now: datetime | None = None
+) -> int:
+    """Escalate due open alerts. Conditional updates make duplicate workers safe."""
+    now = now or datetime.now(UTC)
+    result = await db.execute(
+        select(Alert, Rule).join(Rule, Alert.rule_id == Rule.id).where(
+            Alert.status == AlertStatus.OPEN,
+            Rule.escalate_after_seconds > 0,
+        )
+    )
+
+    escalated = 0
+    for alert, rule in result.all():
+        due_at = alert.opened_at + timedelta(seconds=rule.escalate_after_seconds)
+        if due_at > now:
+            continue
+
+        update_result = await db.execute(
+            update(Alert)
+            .where(Alert.id == alert.id, Alert.status == AlertStatus.OPEN)
+            .values(status=AlertStatus.ESCALATED, escalated_at=now)
+        )
+        escalated += update_result.rowcount
+
+    if escalated:
+        await db.commit()
+    return escalated
 
 
 async def _get_unresolved(

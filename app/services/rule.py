@@ -4,7 +4,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Organization, Rule, Vehicle
-from app.schemas.rule import RuleCreate, RuleUpdate
+from app.schemas.rule import RuleCreate, RuleUpdate, validate_window_configuration
+
+
+class InvalidRuleConfigurationError(Exception):
+    pass
 
 
 async def create(db: AsyncSession, data: RuleCreate) -> Rule | None:
@@ -66,6 +70,15 @@ async def update(
         ):
             return None
 
+    try:
+        validate_window_configuration(
+            updates.get("rule_type", rule.rule_type),
+            updates.get("window_seconds", rule.window_seconds),
+            updates.get("min_matching_events", rule.min_matching_events),
+        )
+    except ValueError as error:
+        raise InvalidRuleConfigurationError(str(error))
+
     for field, value in updates.items():
         setattr(rule, field, value)
 
@@ -108,15 +121,13 @@ async def _vehicle_belongs_to_organization(
 async def get_active_for_telemetry(
     db: AsyncSession, organization_id: int, vehicle_id: int
 ) -> list[Rule]:
-    """Get enabled simple rules applicable to a telemetry record."""
-    from app.models.enums import RuleType
+    """Get enabled rules applicable to a telemetry record."""
 
     result = await db.execute(
         select(Rule).where(
             Rule.organization_id == organization_id,
             Rule.enabled == True,  # noqa: E712
             (Rule.vehicle_id.is_(None) | (Rule.vehicle_id == vehicle_id)),
-            Rule.rule_type == RuleType.SIMPLE,
         )
     )
     return list(result.scalars().all())

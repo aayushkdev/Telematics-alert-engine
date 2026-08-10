@@ -1,4 +1,32 @@
 services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment: &app_environment
+      DATABASE_URL: postgresql+asyncpg://motorq:motorq@postgres:5432/motorq
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://motorq:motorq@rabbitmq:5672/
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  escalation-worker:
+    build: .
+    command: uv run --no-sync python -m app.workers.escalation
+    environment: *app_environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  migrate:
+    build: .
+    command: uv run --no-sync alembic upgrade head
+    environment: *app_environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -9,6 +37,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U motorq -d motorq"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine

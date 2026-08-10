@@ -42,7 +42,10 @@ async def update_rule(
     data: RuleUpdate,
     db: AsyncSession = Depends(get_db),
 ) -> RuleResponse:
-    rule = await services.rule.update(db, rule_id, organization_id, data)
+    try:
+        rule = await services.rule.update(db, rule_id, organization_id, data)
+    except services.rule.InvalidRuleConfigurationError as error:
+        raise HTTPException(status_code=422, detail=str(error))
     if rule is None:
         raise HTTPException(status_code=404, detail="Rule or vehicle not found")
     return rule

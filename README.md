@@ -5,18 +5,21 @@ Telematics alert engine built with FastAPI, PostgreSQL, Redis, and RabbitMQ.
 ## Setup
 
 ```bash
-# Start services
-docker compose up -d
+# Build and start the API, escalation worker, PostgreSQL, Redis, and RabbitMQ
+docker compose up -d --build
 
-# Install dependencies
-uv sync
-
-# Run migrations
-uv run alembic upgrade head
-
-# Run server
-uv run uvicorn app.main:app --reload
+# The one-shot migrate container applies Alembic migrations before API/worker startup.
 ```
+
+To run migrations manually after adding a migration:
+
+```bash
+docker compose run --rm migrate
+```
+
+For local development without the API container, start the backing services with
+`docker compose up -d postgres redis rabbitmq`, then use `uv sync`, `uv run
+alembic upgrade head`, and `uv run uvicorn app.main:app --reload`.
 
 ## API Examples
 
@@ -103,6 +106,25 @@ curl -X PATCH "http://localhost:8000/api/v1/rules/1?organization_id=1" \
 curl -X DELETE "http://localhost:8000/api/v1/rules/1?organization_id=1"
 ```
 
+### Create a Windowed Rule
+
+This alert triggers after three speeding events within five minutes:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/rules \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organization_id": 1,
+    "name": "Repeated speeding",
+    "rule_type": "windowed",
+    "field": "speed_mph",
+    "operator": ">",
+    "threshold": 70,
+    "window_seconds": 300,
+    "min_matching_events": 3
+  }'
+```
+
 ### Manage Alerts
 
 When telemetry matches a rule, the API creates one open alert for that rule and
@@ -119,6 +141,18 @@ curl -X POST "http://localhost:8000/api/v1/alerts/1/acknowledge?organization_id=
 # Resolve an alert
 curl -X POST "http://localhost:8000/api/v1/alerts/1/resolve?organization_id=1"
 ```
+
+### Run the Escalation Worker
+
+The worker checks once per minute and changes overdue unacknowledged `open`
+alerts to `escalated`. Run one worker instance:
+
+```bash
+uv run python -m app.workers.escalation
+```
+
+Rules with `suppress_for_seconds` greater than zero use Redis to throttle
+repeated matching pings. If Redis is unavailable, alerts continue processing.
 
 ## Commands
 

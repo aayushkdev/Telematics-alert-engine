@@ -8,6 +8,22 @@ from app.schemas.base import BaseSchema
 ALLOWED_FIELDS = frozenset({"speed_mph", "fuel_level_percent", "odometer_miles"})
 
 
+def validate_window_configuration(
+    rule_type: RuleType,
+    window_seconds: int | None,
+    min_matching_events: int | None,
+) -> None:
+    if rule_type is RuleType.SIMPLE:
+        if window_seconds is not None or min_matching_events is not None:
+            raise ValueError("simple rules cannot include window settings")
+        return
+
+    if window_seconds is None or min_matching_events is None:
+        raise ValueError("windowed rules require window_seconds and min_matching_events")
+    if window_seconds <= 0 or min_matching_events <= 0:
+        raise ValueError("window settings must be greater than zero")
+
+
 class RuleCreate(BaseSchema):
     organization_id: int
     vehicle_id: int | None = None
@@ -39,11 +55,10 @@ class RuleCreate(BaseSchema):
         return value
 
     @model_validator(mode="after")
-    def validate_simple_rule(self) -> "RuleCreate":
-        if self.rule_type is not RuleType.SIMPLE:
-            raise ValueError("only simple rules are supported in this build")
-        if self.window_seconds is not None or self.min_matching_events is not None:
-            raise ValueError("simple rules cannot include window settings")
+    def validate_rule_configuration(self) -> "RuleCreate":
+        validate_window_configuration(
+            self.rule_type, self.window_seconds, self.min_matching_events
+        )
         return self
 
 
@@ -94,9 +109,9 @@ class RuleUpdate(BaseSchema):
         return value
 
     @model_validator(mode="after")
-    def validate_simple_rule(self) -> "RuleUpdate":
-        if self.rule_type is RuleType.WINDOWED:
-            raise ValueError("only simple rules are supported in this build")
-        if self.window_seconds is not None or self.min_matching_events is not None:
-            raise ValueError("simple rules cannot include window settings")
+    def validate_window_settings(self) -> "RuleUpdate":
+        if self.window_seconds is not None and self.window_seconds <= 0:
+            raise ValueError("window_seconds must be greater than zero")
+        if self.min_matching_events is not None and self.min_matching_events <= 0:
+            raise ValueError("min_matching_events must be greater than zero")
         return self

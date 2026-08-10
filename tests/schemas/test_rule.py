@@ -39,9 +39,26 @@ def test_disallowed_operator_is_rejected(operator):
         RuleCreate(**rule_data(operator=operator))
 
 
-def test_windowed_rule_is_rejected():
-    with pytest.raises(ValidationError, match="only simple rules"):
-        RuleCreate(**rule_data(rule_type=RuleType.WINDOWED))
+def test_windowed_rule_is_valid():
+    rule = RuleCreate(
+        **rule_data(
+            rule_type=RuleType.WINDOWED,
+            window_seconds=300,
+            min_matching_events=3,
+        )
+    )
+    assert rule.rule_type is RuleType.WINDOWED
+
+
+@pytest.mark.parametrize("field", ["window_seconds", "min_matching_events"])
+def test_windowed_rule_requires_both_window_settings(field):
+    with pytest.raises(ValidationError, match="windowed rules require"):
+        RuleCreate(
+            **rule_data(
+                rule_type=RuleType.WINDOWED,
+                **{field: 60},
+            )
+        )
 
 
 @pytest.mark.parametrize("field", ["window_seconds", "min_matching_events"])
@@ -56,6 +73,10 @@ def test_negative_duration_is_rejected(field):
         RuleCreate(**rule_data(**{field: -1}))
 
 
-def test_windowed_rule_update_is_rejected():
-    with pytest.raises(ValidationError, match="only simple rules"):
-        RuleUpdate(rule_type=RuleType.WINDOWED)
+def test_windowed_rule_update_accepts_window_settings():
+    update = RuleUpdate(
+        rule_type=RuleType.WINDOWED,
+        window_seconds=300,
+        min_matching_events=3,
+    )
+    assert update.rule_type is RuleType.WINDOWED

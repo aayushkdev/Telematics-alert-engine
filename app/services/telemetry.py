@@ -6,8 +6,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Rule, Telemetry, Vehicle
+from app.models.enums import RuleType
 from app.schemas.telemetry import TelemetryCreate
-from app.services import alert, rule, rule_engine
+from app.services import alert, rule, rule_engine, suppression, windowing
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,16 @@ async def create(db: AsyncSession, data: TelemetryCreate) -> Telemetry:
         raise DuplicateEventError()
 
     matched_rules = await evaluate_rules_for_telemetry(db, telemetry)
+    processed_rules = []
     for matched_rule in matched_rules:
+        if await suppression.is_suppressed(
+            matched_rule.id,
+            telemetry.vehicle_id,
+            matched_rule.suppress_for_seconds,
+        ):
+            continue
         await alert.record_match(db, matched_rule, telemetry, vehicle.current_driver_id)
+        processed_rules.append(matched_rule)
 
     try:
         await db.commit()
@@ -68,11 +77,18 @@ async def create(db: AsyncSession, data: TelemetryCreate) -> Telemetry:
         await db.rollback()
         raise
 
-    if matched_rules:
+    for processed_rule in processed_rules:
+        await suppression.start_cooldown(
+            processed_rule.id,
+            telemetry.vehicle_id,
+            processed_rule.suppress_for_seconds,
+        )
+
+    if processed_rules:
         logger.info(
             "Telemetry %s matched rules: %s",
             telemetry.event_id,
-            [matched_rule.id for matched_rule in matched_rules],
+            [processed_rule.id for processed_rule in processed_rules],
         )
 
     return telemetry
@@ -88,7 +104,12 @@ async def evaluate_rules_for_telemetry(
 
     matched = []
     for configured_rule in rules:
-        if rule_engine.matches(configured_rule, telemetry):
+        if not rule_engine.matches(configured_rule, telemetry):
+            continue
+
+        if configured_rule.rule_type is RuleType.SIMPLE:
+            matched.append(configured_rule)
+        elif await windowing.threshold_reached(configured_rule, telemetry):
             matched.append(configured_rule)
 
     return matched

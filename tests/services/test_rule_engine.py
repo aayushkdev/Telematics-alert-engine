@@ -72,7 +72,7 @@ def test_disabled_rule_returns_false():
     assert rule_engine.matches(rule, telemetry) is False
 
 
-def test_windowed_rule_returns_false():
+def test_windowed_rule_threshold_condition_matches():
     rule = make_rule(
         field="speed_mph",
         operator=RuleOperator.GT,
@@ -80,7 +80,7 @@ def test_windowed_rule_returns_false():
         rule_type=RuleType.WINDOWED,
     )
     telemetry = make_telemetry(speed_mph=80)
-    assert rule_engine.matches(rule, telemetry) is False
+    assert rule_engine.matches(rule, telemetry) is True
 
 
 def test_unsupported_field_returns_false():

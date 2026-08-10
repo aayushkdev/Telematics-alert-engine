@@ -2,7 +2,7 @@ import operator
 from typing import Any
 
 from app.models import Rule, Telemetry
-from app.models.enums import RuleOperator, RuleType
+from app.models.enums import RuleOperator
 
 FIELDS = frozenset({"speed_mph", "fuel_level_percent", "odometer_miles"})
 
@@ -16,11 +16,8 @@ OPERATORS = {
 
 
 def matches(rule: Rule, telemetry: Telemetry) -> bool:
-    """Check if a simple rule matches a telemetry record."""
+    """Check whether a telemetry record matches a rule's threshold condition."""
     if not rule.enabled:
-        return False
-
-    if rule.rule_type is not RuleType.SIMPLE:
         return False
 
     if rule.field not in FIELDS:
