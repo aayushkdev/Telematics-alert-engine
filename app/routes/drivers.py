@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app import services
+from app.db.session import get_db
 from app.schemas.driver import DriverCreate, DriverResponse, DriverUpdate
 
 router = APIRouter()
@@ -23,7 +23,9 @@ async def list_drivers(organization_id: int, db: AsyncSession = Depends(get_db))
 
 
 @router.get("/{driver_id}", response_model=DriverResponse)
-async def get_driver(driver_id: int, organization_id: int, db: AsyncSession = Depends(get_db)):
+async def get_driver(
+    driver_id: int, organization_id: int, db: AsyncSession = Depends(get_db)
+):
     driver = await services.driver.get_by_id(db, driver_id, organization_id)
     if not driver:
         raise HTTPException(status_code=404, detail="Driver not found")

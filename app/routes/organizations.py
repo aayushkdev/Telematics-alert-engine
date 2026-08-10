@@ -1,15 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app import services
-from app.schemas.organization import OrganizationCreate, OrganizationResponse, OrganizationUpdate
+from app.db.session import get_db
+from app.schemas.organization import (
+    OrganizationCreate,
+    OrganizationResponse,
+    OrganizationUpdate,
+)
 
 router = APIRouter()
 
 
 @router.post("", response_model=OrganizationResponse)
-async def create_organization(data: OrganizationCreate, db: AsyncSession = Depends(get_db)):
+async def create_organization(
+    data: OrganizationCreate, db: AsyncSession = Depends(get_db)
+):
     org = await services.organization.create(db, data)
     return org
 

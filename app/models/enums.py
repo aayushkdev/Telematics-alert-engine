@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import enum
 
 
@@ -11,6 +13,7 @@ class EngineState(str, enum.Enum):
     ON = "on"
     OFF = "off"
 
+
 class AlertStatus(str, enum.Enum):
     OPEN = "open"
     ACKNOWLEDGED = "acknowledged"
@@ -21,4 +24,3 @@ class AlertStatus(str, enum.Enum):
 class RuleType(str, enum.Enum):
     SIMPLE = "simple"
     WINDOWED = "windowed"
-

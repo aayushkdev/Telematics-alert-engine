@@ -1,9 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app import services
-from app.schemas.vehicle import VehicleCreate, VehicleResponse, VehicleUpdate, VehicleAssignDriver
+from app.db.session import get_db
+from app.schemas.vehicle import (
+    VehicleAssignDriver,
+    VehicleCreate,
+    VehicleResponse,
+    VehicleUpdate,
+)
 
 router = APIRouter()
 
@@ -23,7 +28,9 @@ async def list_vehicles(organization_id: int, db: AsyncSession = Depends(get_db)
 
 
 @router.get("/{vehicle_id}", response_model=VehicleResponse)
-async def get_vehicle(vehicle_id: int, organization_id: int, db: AsyncSession = Depends(get_db)):
+async def get_vehicle(
+    vehicle_id: int, organization_id: int, db: AsyncSession = Depends(get_db)
+):
     vehicle = await services.vehicle.get_by_id(db, vehicle_id, organization_id)
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
@@ -50,7 +57,12 @@ async def assign_driver(
     data: VehicleAssignDriver,
     db: AsyncSession = Depends(get_db),
 ):
-    vehicle = await services.vehicle.assign_driver(db, vehicle_id, organization_id, data)
+    vehicle = await services.vehicle.assign_driver(
+        db, vehicle_id, organization_id, data
+    )
     if not vehicle:
-        raise HTTPException(status_code=404, detail="Vehicle or driver not found or different organization")
+        raise HTTPException(
+            status_code=404,
+            detail="Vehicle or driver not found or different organization",
+        )
     return vehicle

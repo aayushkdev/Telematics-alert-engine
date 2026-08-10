@@ -1,3 +1,3 @@
-from app.services import organization, user, driver, vehicle
+from app.services import driver, organization, user, vehicle
 
-__all__ = ["organization", "user", "driver", "vehicle"]
+__all__ = ["driver", "organization", "user", "vehicle"]

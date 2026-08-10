@@ -14,11 +14,15 @@ async def create(db: AsyncSession, data: OrganizationCreate) -> Organization:
 
 
 async def get_by_id(db: AsyncSession, organization_id: int) -> Organization | None:
-    result = await db.execute(select(Organization).where(Organization.id == organization_id))
+    result = await db.execute(
+        select(Organization).where(Organization.id == organization_id)
+    )
     return result.scalar_one_or_none()
 
 
-async def update(db: AsyncSession, organization_id: int, data: OrganizationUpdate) -> Organization | None:
+async def update(
+    db: AsyncSession, organization_id: int, data: OrganizationUpdate
+) -> Organization | None:
     org = await get_by_id(db, organization_id)
     if not org:
         return None
