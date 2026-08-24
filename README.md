@@ -1,4 +1,4 @@
-# MotorQ
+# Telematics alert engine
 
 Telematics alert engine built with FastAPI, PostgreSQL, Redis, and RabbitMQ.
 
@@ -25,7 +25,6 @@ flowchart LR
     A -->|Manage organizations, vehicles, rules, alerts| P
 ```
 
-![Speed test](assets/speed_test.png)
 
 ## Setup
 
